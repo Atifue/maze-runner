@@ -1,7 +1,7 @@
 {
   "name": "minecraft-maze",
   "version": "1.0.0",
-  "description": "",
+  "description": "Intialize npm with defaults:",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -10,6 +10,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "mineflayer": "^4.33.0"
-  }
+    "mineflayer": "^4.0.0",
+    "mineflayer-pathfinder": "^2.4.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Atifue/maze-runner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Atifue/maze-runner/issues"
+  },
+  "homepage": "https://github.com/Atifue/maze-runner#readme"
 }

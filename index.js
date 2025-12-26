@@ -15,11 +15,15 @@ bot.loadPlugin(pathfinder)
 // Data structures for maze solving
 const visited = new Set() // Stores visited positions as "x,y,z" strings
 const path = [] // Stores the sequence of positions taken
-const TARGET_USERNAME = 'WajTheGoat' //Will teleport to whatever name you enter (Not working, have to do manual tp)
+//const TARGET_USERNAME = 'WajTheGoat' //Will teleport to whatever name you enter (Not working, have to do manual tp)
 
 // Helper to convert Vec3 position to a string key
 function posToString (pos) {
   return `${pos.x},${pos.y},${pos.z}`
+}
+
+function findNearestPlayerEntity () {
+  return bot.nearestEntity(e => e.type === 'player' && e !== bot.entity)
 }
 
 // Bot action functions
@@ -66,15 +70,21 @@ bot.once('spawn', () => {
   visited.add(posToString(bot.entity.position))
   path.push(bot.entity.position.clone())
   
-  const tick = setInterval(() => {
-    const player = bot.players[TARGET_USERNAME]?.entity //Go to player listed
-    if (!player) return
+  // const tick = setInterval(() => {
+  //   const player = bot.players[TARGET_USERNAME]?.entity //Go to player listed
+  //   if (!player) return
 
-    clearInterval(tick)
-    const playerPos = player.position.clone()
-    bot.chat(`/tp ${bot.username} ${playerPos.x} ${playerPos.y} ${playerPos.z}`)
+  //   clearInterval(tick)
+    //const playerPos = player.position.clone()
+    //bot.chat(`/tp ${bot.username} ${playerPos.x} ${playerPos.y} ${playerPos.z}`)
 
     // start moving shortly after teleport
+    const tick = setInterval(() => {
+    const player = findNearestPlayerEntity()
+    if (!player) return
+    clearInterval(tick)
+    bot.chat(`/tp ${bot.username} ${player.username}`)
+    
     setTimeout(async () => {
       bot.chat('Starting maze exploration!')
 

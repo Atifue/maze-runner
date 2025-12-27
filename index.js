@@ -169,9 +169,9 @@ async function startSolving () {
   while (true) {
     // Check for exit
     const blockInFront = getBotFacingBlock()
-    if (blockInFront && blockInFront.name === 'pressure_plate') {
-      await generateNewMaze()
-      return
+    if (blockInFront && blockInFront.name === 'stone_pressure_plate') {
+      bot.chat("Found the maze exit!")
+      bot.quit()
     }
 
     let moved = false

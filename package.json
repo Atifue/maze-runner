@@ -1,12 +1,17 @@
 {
   "name": "minecraft-maze",
   "version": "1.0.0",
-  "description": "Intialize npm with defaults:",
-  "main": "index.js",
+  "description": "Minecraft maze bot that generates and solves mazes with mineflayer.",
+  "main": "runner.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test"
   },
-  "keywords": [],
+  "keywords": [
+    "minecraft",
+    "mineflayer",
+    "bot",
+    "maze"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {

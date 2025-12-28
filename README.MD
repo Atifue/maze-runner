@@ -88,3 +88,8 @@ npm test
 *   Add support for deterministic maze seeds so runs can be reproduced and debugged.
 *   Add configurable maze parameters (size, wall height, exit block) via env/CLI flags.
 *   Add structured logging output (JSON) with timestamps and event types for easier parsing.
+
+
+* Move to bun in future instead of npm ? 
+
+*ADD ci cd ? 

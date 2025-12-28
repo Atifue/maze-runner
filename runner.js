@@ -2,12 +2,28 @@ const mineflayer = require('mineflayer') // importing mineflayer
 const { Vec3 } = require('vec3')
 const pathfinder = require('mineflayer-pathfinder').pathfinder
 const { GoalBlock } = require('mineflayer-pathfinder').goals
+const { posToString, isPathable, isExitBlock, generateNewMaze } = require('./maze')
+
+function getArgValue (flag) {
+  const index = process.argv.indexOf(flag)
+  if (index === -1) return null
+  return process.argv[index + 1] || null
+}
+
+const host = process.env.MAZE_BOT_HOST || getArgValue('--host') || 'localhost'
+const portInput = process.env.MAZE_BOT_PORT || getArgValue('--port') || '25565'
+const port = Number.parseInt(portInput, 10)
+const username = process.env.MAZE_BOT_USERNAME || getArgValue('--username') || 'maze_bot'
+
+if (!Number.isFinite(port)) {
+  throw new Error(`Invalid port: ${portInput}`)
+}
 
 const bot = mineflayer.createBot({
-    host: "localhost", // server hosted locally
-    port: 25565,    // open to lan and set your own port, likely switch to atternos
-    username: 'maze_bot'
-    // enter a password field if it's a legit account
+  host, // server hosted locally by default
+  port, // open to lan and set your own port, likely switch to atternos
+  username
+  // enter a password field if it's a legit account
 })
 
 bot.loadPlugin(pathfinder)
@@ -16,11 +32,6 @@ bot.loadPlugin(pathfinder)
 const visited = new Set() // Stores visited positions as "x,y,z" strings
 const path = [] // Stores the sequence of positions taken
 //const TARGET_USERNAME = 'WajTheGoat' //Will teleport to whatever name you enter (Not working, have to do manual tp)
-
-// Helper to convert Vec3 position to a string key
-function posToString (pos) {
-  return `${pos.x},${pos.y},${pos.z}`
-}
 
 function findNearestPlayerEntity () {
   return bot.nearestEntity(e => e.type === 'player' && e !== bot.entity)
@@ -57,127 +68,39 @@ function getBotFacingBlock () {
   return bot.world.getBlock(targetPos)
 }
 
-
-
-function isPathable (block) {
-  return block && (block.name === 'air' || block.name.includes('pressure_plate'))
+function getBlockUnderfoot () {
+  const footPos = bot.entity.position.floored()
+  return bot.blockAt(footPos.offset(0, -1, 0))
 }
 
-// Helper function to create a delay
-function sleep (ms) {
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
-
-let isGenerating = false
-
-function buildMazeGrid (size) {
-  const grid = Array.from({ length: size }, () => Array(size).fill(false))
-  const stack = [{ x: 1, z: 1 }]
-  grid[1][1] = true
-
-  while (stack.length) {
-    const current = stack[stack.length - 1]
-    const neighbors = []
-
-    const directions = [
-      { dx: 2, dz: 0 },
-      { dx: -2, dz: 0 },
-      { dx: 0, dz: 2 },
-      { dx: 0, dz: -2 }
-    ]
-
-    for (const dir of directions) {
-      const nx = current.x + dir.dx
-      const nz = current.z + dir.dz
-      if (nx > 0 && nz > 0 && nx < size - 1 && nz < size - 1 && !grid[nx][nz]) {
-        neighbors.push({ x: nx, z: nz, wx: current.x + dir.dx / 2, wz: current.z + dir.dz / 2 })
-      }
-    }
-
-    if (neighbors.length === 0) {
-      stack.pop()
-      continue
-    }
-
-    const next = neighbors[Math.floor(Math.random() * neighbors.length)]
-    grid[next.wx][next.wz] = true
-    grid[next.x][next.z] = true
-    stack.push({ x: next.x, z: next.z })
-  }
-
-  return grid
-}
-
-async function generateNewMaze () {
-  if (isGenerating) return
-  isGenerating = true
-
-  const size = 21 // odd size so walls/corridors alternate
-  const wallHeight = 3
-  const half = Math.floor(size / 2)
-  const min = -half
-  const max = half
-
-  console.log('Generating new maze...')
-
-  // 1. Clear the old area and set the floor
-  bot.chat(`/fill ~${min} ~-1 ~${min} ~${max} ~-1 ~${max} grass_block`)
-  await sleep(100)
-  bot.chat(`/fill ~${min} ~ ~${min} ~${max} ~${wallHeight - 1} ~${max} stone`)
-  await sleep(100)
-
-  // 2. Carve the maze paths
-  const grid = buildMazeGrid(size)
-  const openCells = []
-  for (let x = 0; x < size; x++) {
-    for (let z = 0; z < size; z++) {
-      if (!grid[x][z]) continue
-      openCells.push({ x, z })
-      const relX = x - half
-      const relZ = z - half
-      bot.chat(`/fill ~${relX} ~ ~${relZ} ~${relX} ~${wallHeight - 1} ~${relZ} air`)
-      await sleep(10)
-    }
-  }
-
-  // 3. Set the goal at the far corner
-  const exitX = size - 2
-  const exitZ = size - 2
-  bot.chat(`/setblock ~${exitX - half} ~ ~${exitZ - half} stone_pressure_plate`)
-
-  // 4. Move bot to a random open cell
-  if (openCells.length > 0) {
-    const pick = openCells[Math.floor(Math.random() * openCells.length)]
-    bot.chat(`/tp ${bot.username} ~${pick.x - half} ~ ~${pick.z - half}`)
-  }
-
-  console.log('Maze ready!')
-  isGenerating = false
-
-  startSolving()
+function generateMaze () {
+  return generateNewMaze({ bot, startSolving })
 }
 
 async function startSolving () {
   // Initialize visited set and path
   visited.clear()
   path.length = 0
-  visited.add(posToString(bot.entity.position))
-  path.push(bot.entity.position.clone())
+  const startPos = bot.entity.position.floored()
+  visited.add(posToString(startPos))
+  path.push(startPos.clone())
 
   bot.chat('Starting maze exploration!')
 
   while (true) {
-    // Check for exit
+    // Check for exit (underfoot or in front)
     const blockInFront = getBotFacingBlock()
-    if (blockInFront && blockInFront.name === 'stone_pressure_plate') {
+    const blockUnderfoot = getBlockUnderfoot()
+    if (isExitBlock(blockUnderfoot) || isExitBlock(blockInFront)) {
       bot.chat("Found the maze exit!")
       bot.quit()
+      return
     }
 
     let moved = false
 
     // 1. Try to move forward
-    const forwardBlock = getBotFacingBlock()
+    const forwardBlock = blockInFront
     if (isPathable(forwardBlock) && !visited.has(posToString(forwardBlock.position))) {
       const newPos = await moveForward()
       visited.add(posToString(newPos))
@@ -221,7 +144,7 @@ async function startSolving () {
         await bot.lookAt(prevPos.offset(0.5, 1, 0.5), true) // Look towards the center of the previous block
       } else {
         bot.chat('No solution found or bot is stuck. Regenerating...')
-        await generateNewMaze()
+        await generateMaze()
         return
       }
     }
@@ -247,10 +170,7 @@ bot.once('spawn', () => {
     bot.chat(`/tp ${bot.username} ${player.username}`)
     
     setTimeout(() => {
-      generateNewMaze()
+      generateMaze()
     }, 1000)
   }, 500)
 })
-
-
-
